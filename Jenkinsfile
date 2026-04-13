@@ -10,9 +10,6 @@ node {
     }
 
     stage('Test') {
-        app.withRun('-p 9090:80') { c ->
-            sh 'sleep 2'
-            sh 'curl -f http://localhost:9090'
-        }
+        sh "docker run --rm azizmjd/nginx-isoset:${BUILD_NUMBER} wget -qO- http://localhost:80"
     }
 }
