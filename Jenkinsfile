@@ -1,8 +1,11 @@
 node {
     def app
+    def REGISTRY_LOCAL = "localhost:5000/nginx-aziz"
+    def REGISTRY_DOCKERHUB = "azizmjd/nginx-aziz"
+    def REGISTRY_GITLAB = "registry.gitlab.com/azizm-git/aziz_gitlab/nginx-aziz"
 
     stage('Cleanup') {
-        sh 'docker rm -f nginx-aziz || true'
+        sh 'docker rm -f nginx-aziz-prod || true'
     }
 
     stage('Clone') {
@@ -10,21 +13,25 @@ node {
     }
 
     stage('Build image') {
-        app = docker.build("localhost:5000/nginx-aziz")
+        app = docker.build(REGISTRY_LOCAL)
     }
 
-    stage('Push image') {
+    stage('Push Registry local') {
         docker.withRegistry('http://localhost:5000') {
             app.push("latest")
         }
     }
 
-    stage('Run image') {
-        sh 'docker run -d -p 8090:80 --name nginx-aziz localhost:5000/nginx-aziz'
-        sh 'sleep 3'
-        sh 'curl http://192.168.170.131:8090'
-        sh 'docker stop nginx-aziz'
-        sh 'docker rm nginx-aziz'
+    stage('Push Docker Hub') {
+        docker.withRegistry('https://registry-1.docker.io', 'dockerhub-creds') {
+            app.push("latest")
+        }
+    }
+
+    stage('Push GitLab Registry') {
+        docker.withRegistry('https://registry.gitlab.com', 'gitlab-creds') {
+            app.push("latest")
+        }
     }
 
     stage('Deploy') {
