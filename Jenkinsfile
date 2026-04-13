@@ -26,4 +26,9 @@ node {
         sh 'docker stop nginx-aziz'
         sh 'docker rm nginx-aziz'
     }
+
+    stage('Deploy') {
+        sh 'docker run -d -p 8091:80 --name nginx-aziz-prod localhost:5000/nginx-aziz'
+        sh 'echo "✅ Deployed on http://192.168.170.131:8091"'
+    }
 }
