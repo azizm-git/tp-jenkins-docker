@@ -1,8 +1,7 @@
 node {
-    def app
-    def REGISTRY_LOCAL = "localhost:5000/nginx-aziz"
-    def REGISTRY_DOCKERHUB = "azizmjd/nginx-aziz"
-    def REGISTRY_GITLAB = "registry.gitlab.com/azizm-git/aziz_gitlab/nginx-aziz"
+    def REGISTRY_LOCAL  = "localhost:5000/nginx-aziz"
+    def DOCKERHUB_IMAGE = "azizmjd/nginx-aziz"
+    def GITLAB_IMAGE    = "registry.gitlab.com/azizm-git/aziz_gitlab/nginx-aziz"
 
     stage('Cleanup') {
         sh 'docker rm -f nginx-aziz-prod || true'
@@ -12,30 +11,32 @@ node {
         checkout scm
     }
 
-    stage('Build image') {
-        app = docker.build(REGISTRY_LOCAL)
+    stage('Build') {
+        sh "docker build -t ${REGISTRY_LOCAL} ."
     }
 
-    stage('Push Registry local') {
-        docker.withRegistry('http://localhost:5000') {
-            app.push("latest")
-        }
+    stage('Push Local') {
+        sh "docker push ${REGISTRY_LOCAL}"
     }
 
     stage('Push Docker Hub') {
-        docker.withRegistry('https://registry-1.docker.io', 'dockerhub-creds') {
-            app.push("latest")
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+            sh "docker login -u $USER -p $PASS"
+            sh "docker tag ${REGISTRY_LOCAL} ${DOCKERHUB_IMAGE}"
+            sh "docker push ${DOCKERHUB_IMAGE}"
         }
     }
 
-    stage('Push GitLab Registry') {
-        docker.withRegistry('https://registry.gitlab.com', 'gitlab-creds') {
-            app.push("latest")
+    stage('Push GitLab') {
+        withCredentials([usernamePassword(credentialsId: 'gitlab-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+            sh "docker login -u $USER -p $PASS registry.gitlab.com"
+            sh "docker tag ${REGISTRY_LOCAL} ${GITLAB_IMAGE}"
+            sh "docker push ${GITLAB_IMAGE}"
         }
     }
 
     stage('Deploy') {
-        sh 'docker run -d -p 8091:80 --name nginx-aziz-prod localhost:5000/nginx-aziz'
-        sh 'echo "✅ Deployed on http://192.168.170.131:8091"'
+        sh "docker run -d -p 8091:80 --name nginx-aziz-prod ${REGISTRY_LOCAL}"
+        sh 'echo "✅ http://192.168.170.131:8091"'
     }
 }
